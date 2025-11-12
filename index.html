@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoinSystem DApp</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Inter", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(145deg, #0e0e11, #18181f);
+      color: #f1f1f1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      margin-top: 40px;
+      font-size: 2rem;
+      color: #00ffc3;
+      text-shadow: 0 0 10px #00ffc355;
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      margin: 20px 0;
+      width: 90%;
+      max-width: 500px;
+      overflow: hidden;
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      color: #ccc;
+      border-bottom: 3px solid transparent;
+    }
+
+    .tab:hover {
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .tab.active {
+      color: #00ffc3;
+      font-weight: bold;
+      border-bottom: 3px solid #00ffc3;
+      background: rgba(0, 255, 195, 0.1);
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 20px;
+      width: 90%;
+      max-width: 400px;
+      margin: 10px auto;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    h2 {
+      color: #00ffc3;
+      font-size: 1.3rem;
+      margin-bottom: 10px;
+    }
+
+    button {
+      width: 100%;
+      background: #00ffc3;
+      color: #111;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.25s ease;
+    }
+
+    button:hover {
+      background: #00e0ab;
+      transform: scale(1.03);
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 1rem;
+      transition: border 0.2s ease;
+    }
+
+    input:focus {
+      border: 1px solid #00ffc3;
+      outline: none;
+    }
+
+    p {
+      margin: 8px 0;
+      font-size: 0.95rem;
+    }
+
+    span {
+      color: #00ffc3;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <h1>CoinSystem DApp</h1>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('wallet')">Wallet</div>
+    <div class="tab" onclick="switchTab('mybalance')">My Balance</div>
+    <div class="tab" onclick="switchTab('checkbalance')">Check Balance</div>
+    <div class="tab" onclick="switchTab('send')">Send Tokens</div>
+  </div>
+
+  <!-- Wallet Tab -->
+  <div id="wallet" class="tab-content active">
+    <div class="card">
+      <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+      <p>Connected Address: <span id="userAddress">Not Connected</span></p>
+    </div>
+  </div>
+
+  <!-- My Balance Tab -->
+  <div id="mybalance" class="tab-content">
+    <div class="card">
+      <h2>Check My Balance</h2>
+      <button onclick="checkMyBalance()">Get My Balance</button>
+      <p>Balance: <span id="myBalanceResult">0</span></p>
+    </div>
+  </div>
+
+  <!-- Check Balance Tab -->
+  <div id="checkbalance" class="tab-content">
+    <div class="card">
+      <h2>Check Balance by Address</h2>
+      <input type="text" id="balanceAddress" placeholder="Enter wallet address" />
+      <button onclick="checkBalance()">Get Balance</button>
+      <p>Balance: <span id="balanceResult">0</span></p>
+    </div>
+  </div>
+
+  <!-- Send Tokens Tab -->
+  <div id="send" class="tab-content">
+    <div class="card">
+      <h2>Send Tokens</h2>
+      <input type="text" id="recipientAddress" placeholder="Recipient address" />
+      <input type="number" id="coinAmount" placeholder="Coin amount" />
+      <button onclick="sendCoins()">Send</button>
+      <p>Transaction Code: <span id="transactionCode"></span></p>
+      <p>Transaction Status: <span id="transactionStatus"></span></p>
+    </div>
+  </div>
+
+  <script>
+    // Tab switcher
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector(`.tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    // DApp logic
+    const contractAddress = "0x1b4e66EAfb91e547F067bD240EB77626F580C8Ea";
+    const contractABI = [
+      {
+        inputs: [
+          { internalType: "address payable", name: "to", type: "address" },
+          { internalType: "uint256", name: "coinAmount", type: "uint256" },
+        ],
+        name: "sendCoin",
+        outputs: [],
+        stateMutability: "payable",
+        type: "function",
+      },
+      {
+        inputs: [
+          { internalType: "uint256", name: "initialSupply", type: "uint256" },
+        ],
+        stateMutability: "nonpayable",
+        type: "constructor",
+      },
+      {
+        anonymous: false,
+        inputs: [
+          { indexed: true, internalType: "address", name: "from", type: "address" },
+          { indexed: true, internalType: "address", name: "to", type: "address" },
+          { indexed: false, internalType: "uint256", name: "coinAmount", type: "uint256" },
+          { indexed: false, internalType: "uint256", name: "ethAmount", type: "uint256" },
+        ],
+        name: "Transfer",
+        type: "event",
+      },
+      {
+        inputs: [{ internalType: "address", name: "user", type: "address" }],
+        name: "getBalance",
+        outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+        stateMutability: "view",
+        type: "function",
+      },
+    ];
+
+    let provider, signer, contract;
+
+    async function connectWallet() {
+      if (window.ethereum) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        const address = await signer.getAddress();
+        document.getElementById("userAddress").innerText = address;
+        contract = new ethers.Contract(contractAddress, contractABI, signer);
+        document.getElementById("connectBtn").innerText = "Connected";
+        document.getElementById("connectBtn").style.background = "#0f0";
+        document.getElementById("connectBtn").disabled = true;
+      } else {
+        alert("Please install MetaMask!");
+      }
+    }
+
+    async function checkBalance() {
+      const address = document.getElementById("balanceAddress").value.trim();
+      if (!address) return alert("Enter an address");
+      const balance = await contract.getBalance(address);
+      document.getElementById("balanceResult").innerText = balance.toString();
+    }
+
+    async function checkMyBalance() {
+      const address = document.getElementById("userAddress").innerText;
+      if (!address || address === "Not Connected")
+        return alert("Please connect your MetaMask!");
+      const balance = await contract.getBalance(address);
+      document.getElementById("myBalanceResult").innerText = balance.toString();
+    }
+
+    async function sendCoins() {
+      const to = document.getElementById("recipientAddress").value.trim();
+      const coinAmount = document.getElementById("coinAmount").value.trim();
+      const address = document.getElementById("userAddress").innerText;
+      if (address === "Not Connected") return alert("Please connect your MetaMask!");
+      if (!to || !coinAmount) return alert("Enter recipient address and amount");
+
+      try {
+        const tx = await contract.sendCoin(to, coinAmount);
+        document.getElementById("transactionCode").innerText = tx.hash;
+        document.getElementById("transactionStatus").innerText = "Pending...";
+        await tx.wait();
+        document.getElementById("transactionStatus").innerText = "Transaction Confirmed!";
+      } catch (error) {
+        document.getElementById("transactionStatus").innerText =
+          "Error: " + (error.message || error);
+      }
+    }
+  </script>
+</body>
+</html>
